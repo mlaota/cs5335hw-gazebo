@@ -55,7 +55,7 @@ degrade(float xx, int ee)
 
 Robot::Robot(int argc, char* argv[], void (*cb)(Robot*))
     : on_update(cb), task_done(false), stamp(0.0f),
-      err_x(5), err_y(0), err_t(3), err_l(1), err_r(0)
+      err_x(5), err_y(0), err_t(0), err_l(1), err_r(0)
 {
     srand(getpid()^time(0));
 
