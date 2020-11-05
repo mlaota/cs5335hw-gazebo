@@ -144,8 +144,8 @@ Robot::on_frame(ConstImageStampedPtr &msg)
 void
 Robot::on_pose(ConstPoseStampedPtr &msg)
 {
-    auto x_error = ((rand() % 21) - 10) * 0.02;
-    auto y_error = ((rand() % 21) - 10) * 0.02;
+    auto x_error = ((rand() % 41) - 20) * 0.01;
+    auto y_error = ((rand() % 41) - 20) * 0.01;
 
     auto pos = msg->pose().position();
     this->pos_x = pos.x() + x_error;
