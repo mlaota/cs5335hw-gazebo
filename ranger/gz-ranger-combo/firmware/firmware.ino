@@ -11,6 +11,12 @@ MeUltrasonicSensor Sonar(PORT_8);
 char command[64];
 char cmd_idx = 0;
 
+int speed_L = 0;
+int speed_R = 0;
+int dist    = 0;
+
+unsigned long last_tick = 0;
+
 void
 isr_e1()
 {
@@ -44,19 +50,18 @@ setup_pwm()
 }
 
 void
-setup_enc(MeEncoderOnBoard* enc, void (*isr)())
+setup_enc(MeEncoderOnBoard* enc, void (*isr)(), int slot)
 {
+    //Need to reset to enable
+    //https://github.com/Makeblock-official/Makeblock-Libraries/issues/67
+    enc->reset(slot);
     attachInterrupt(enc->getIntNum(), isr, RISING);
-}
 
-void
-set_speed()
-{
-    int spL, spR;
-    sscanf(command, "%d %d", &spL, &spR);
-
-    E1.setMotorPwm(-spL);
-    E2.setMotorPwm(+spR);
+    // values from example code
+    enc->setPulse(9);
+    enc->setRatio(39.267);
+    enc->setPosPid(0.18,0,0);
+    enc->setSpeedPid(0.18,0,0);
 }
 
 void
@@ -66,7 +71,7 @@ poll_serial()
         char cc = Serial.read();
         if (cc == '\n') {
             command[cmd_idx] = 0;
-            set_speed();
+            sscanf(command, "%d %d", &speed_L, &speed_R);
             command[0] = 0;
             cmd_idx = 0;
             return;
@@ -78,20 +83,43 @@ poll_serial()
 }
 
 void
+tick()
+{
+    char temp[100];
+    snprintf(temp, 96, "%d %d %d", dist, speed_L, speed_R);
+    Serial.println(temp);
+}
+
+void
+maybe_tick()
+{
+    unsigned long now = millis();
+
+    if (last_tick + 100 <= now) {
+        tick();
+        last_tick = now;
+    }
+}
+
+void
 setup()
 {
     setup_pwm();
-    setup_enc(&E1, isr_e1);
-    setup_enc(&E2, isr_e2);
+    setup_enc(&E1, isr_e1, SLOT1);
+    setup_enc(&E2, isr_e2, SLOT2);
     Serial.begin(9600);
 }
 
 void
 loop()
 {
-    poll_serial();
-    Serial.println(Sonar.distanceCm());
+    dist = Sonar.distanceCm();
 
-    E1.updateSpeed();
-    E2.updateSpeed();
+    poll_serial();
+    maybe_tick();
+
+    E1.runSpeed(-speed_L);
+    E2.runSpeed(+speed_R);
+    E1.loop();
+    E2.loop();
 }

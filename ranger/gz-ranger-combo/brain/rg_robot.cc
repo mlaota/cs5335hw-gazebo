@@ -4,9 +4,12 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <iostream>
 using std::cout;
 using std::endl;
+#include <string>
+using std::string;
 
 #include "robot.hh"
 
@@ -23,8 +26,13 @@ RgRobot::RgRobot(int argc, char* argv[], void (*cb)(Robot*))
     rv = tcgetattr(port, &cfg);
     assert(rv != -1);
 
+    // https://github.com/todbot/arduino-serial/blob/master/arduino-serial-lib.c
     cfsetispeed(&cfg, B9600);
     cfsetospeed(&cfg, B9600);
+    cfg.c_cflag &= ~PARENB;
+    cfg.c_cflag &= ~CSTOPB;
+    cfg.c_cflag &= ~CRTSCTS;
+    cfg.c_cflag |= CS8;
 
     rv = tcsetattr(port, TCSANOW, &cfg);
     assert(rv != -1);
@@ -53,32 +61,58 @@ RgRobot::set_vel(double lvel, double rvel)
 
     snprintf(temp, 96, "%d %d\n", s0, s1);
     write(port, temp, strlen(temp));
-    cout << "cmd: " << temp << endl;
+    //cout << "cmd: " << temp << endl;
+}
+
+static
+string
+serial_read_line()
+{
+    string temp("");
+    char cc = 0;
+
+    while (1) {
+        read(port, &cc, 1);
+
+        if (cc == '\n' && temp.size() > 0) {
+            return temp;
+        }
+
+        if (cc == '\n' || temp.size() > 30) {
+            temp.clear();
+        }
+
+        if (isdigit(cc) || cc == ' ') {
+            temp.push_back(cc);
+        }
+    }
 }
 
 void
 RgRobot::read_range()
 {
-    char temp[100];
-    int ii = 0;
+    string line = serial_read_line();
+    const char* temp = line.c_str();
 
-    for (; ii < 96; ++ii) {
-        read(port, temp + ii, 1);
-        if (temp[ii] == '\n') {
-            break;
-        }
+    cout << "[" << temp << "]" << endl;
+
+    int rg, sL, sR;
+    int rv = sscanf(temp, "%d %d %d", &rg, &sL, &sR);
+    if (rv != 3) {
+        this->range = 0;
+        return;
     }
 
-    temp[ii+1] = 0;
-
-    this->range = atoi(temp) / 100.0f;
-    cout << "range = " << this->range << endl;
+    this->range = rg / 100.0f;
+    cout << "range = " << this->range << "; "
+         << "speeds = " << sL << "," << sR << endl;
 }
 
 void
 RgRobot::do_stuff()
 {
     while (1) {
+        cout << "\n == iterate ==" << endl;
         this->read_range();
         this->on_update(this);
     }
