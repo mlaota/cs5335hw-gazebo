@@ -5,8 +5,8 @@ SRCS := $(wildcard *.cc)
 OBJS := $(SRCS:.cc=.o)
 HDRS := $(wildcard *.hh)
 
-CFLAGS := -g $(shell pkg-config --cflags gtk+-3.0 x11 gazebo opencv)
-LIBS   := $(shell pkg-config --libs gtk+-3.0 x11 gazebo opencv)
+CFLAGS := -g $(shell pkg-config --cflags gtk+-3.0 x11 gazebo opencv4)
+LIBS   := $(shell pkg-config --libs gtk+-3.0 x11 gazebo opencv4)
 
 all:
 	make -j $(BIN)
